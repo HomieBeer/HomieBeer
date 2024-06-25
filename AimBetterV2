@@ -1,0 +1,69 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local camera = game.Workspace.CurrentCamera
+
+local player = Players.LocalPlayer
+local enabled = false
+local toggleKey = Enum.KeyCode.G
+
+local lockedPlayer = nil
+
+-- Function to find the nearest player's head to the cursor
+local function findNearestPlayerHead()
+    local mouse = UserInputService:GetMouseLocation()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    
+    for _, targetPlayer in pairs(Players:GetPlayers()) do
+        if targetPlayer ~= player and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+            local head = targetPlayer.Character.Head
+            local screenPos, onScreen = camera:WorldToScreenPoint(head.Position)
+            if onScreen then
+                local distance = (Vector2.new(screenPos.X, screenPos.Y) - mouse).Magnitude
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    closestPlayer = targetPlayer
+                end
+            end
+        end
+    end
+    
+    return closestPlayer
+end
+
+-- Function to aim at the nearest player's head
+local function aimAtHead()
+    if lockedPlayer and lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("Head") then
+        local head = lockedPlayer.Character.Head
+        camera.CFrame = CFrame.new(camera.CFrame.Position, head.Position)
+    end
+end
+
+-- Input handler for toggling aim
+UserInputService.InputBegan:Connect(function(input, processed)
+    if input.KeyCode == toggleKey then
+        enabled = not enabled
+        if not enabled then
+            lockedPlayer = nil  -- Reset locked player when toggle is turned off
+        end
+    end
+end)
+
+-- Continuous aiming while enabled
+RunService.RenderStepped:Connect(function()
+    if enabled then
+        if not lockedPlayer then
+            -- Find nearest player's head and lock onto it
+            lockedPlayer = findNearestPlayerHead()
+        else
+            -- Check if locked player is still valid
+            if not (lockedPlayer.Character and lockedPlayer.Character:FindFirstChild("Head")) then
+                lockedPlayer = nil
+            end
+        end
+        
+        -- Aim at the locked player's head
+        aimAtHead()
+    end
+end)
